@@ -70,6 +70,7 @@ class Dispatcher {
   final List<BitmapHunter> batch;
   final NetworkBroadcastReceiver receiver;
 
+  List<BitmapHunter> copy;
   NetworkInfo networkInfo;
   boolean airplaneMode;
 

@@ -55,7 +55,8 @@ public class Picasso {
   }
 
   /**
-   * A transformer that is called immediately before every request is submitted. This can be used to
+   * A transformer that is called immediately before every request is submitted. This can be used
+   * to
    * modify any information about a request.
    * <p>
    * For example, if you use a CDN you can change the hostname for the image based on the current
@@ -294,8 +295,13 @@ public class Picasso {
   }
 
   void complete(BitmapHunter hunter) {
+    Action single = hunter.getAction();
     List<Action> joined = hunter.getActions();
-    if (joined.isEmpty()) {
+
+    boolean hasMultiple = joined != null && !joined.isEmpty();
+    boolean shouldDeliver = single != null || hasMultiple;
+
+    if (!shouldDeliver) {
       return;
     }
 
@@ -304,25 +310,36 @@ public class Picasso {
     Bitmap result = hunter.getResult();
     LoadedFrom from = hunter.getLoadedFrom();
 
+    if (single != null) {
+      deliverAction(result, from, single);
+      if (!hasMultiple) {
+        return;
+      }
+    }
+
     //noinspection ForLoopReplaceableByForEach
     for (int i = 0, n = joined.size(); i < n; i++) {
       Action join = joined.get(i);
-      if (join.isCancelled()) {
-        continue;
-      }
-      targetToAction.remove(join.getTarget());
-      if (result != null) {
-        if (from == null) {
-          throw new AssertionError("LoadedFrom cannot be null.");
-        }
-        join.complete(result, from);
-      } else {
-        join.error();
-      }
+      deliverAction(result, from, join);
     }
 
     if (listener != null && exception != null) {
       listener.onImageLoadFailed(this, uri, exception);
+    }
+  }
+
+  private void deliverAction(Bitmap result, LoadedFrom from, Action action) {
+    if (action.isCancelled()) {
+      return;
+    }
+    targetToAction.remove(action.getTarget());
+    if (result != null) {
+      if (from == null) {
+        throw new AssertionError("LoadedFrom cannot be null.");
+      }
+      action.complete(result, from);
+    } else {
+      action.error();
     }
   }
 
@@ -470,7 +487,8 @@ public class Picasso {
     /**
      * Specify a transformer for all incoming requests.
      * <p>
-     * <b>NOTE:</b> This is a beta feature. The API is subject to change in a backwards incompatible
+     * <b>NOTE:</b> This is a beta feature. The API is subject to change in a backwards
+     * incompatible
      * way at any time.
      */
     public Builder requestTransformer(RequestTransformer transformer) {
